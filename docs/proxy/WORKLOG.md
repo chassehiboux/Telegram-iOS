@@ -65,3 +65,9 @@
 - Public broadcast root info now always exposes `More`, whose first state-aware action toggles notifications through the same canonical binary API and respects explicit plus global channel settings. Topic/thread notification controls retain their existing behavior.
 - Private broadcast channels, public/private supergroups, legacy groups, users, Join, search, gifts, suggestions, and other lower-panel actions retain their prior branches.
 - Source review and macOS build/UI validation remain outstanding; no UI runtime claim is made yet.
+
+## 2026-08-12 — macOS validation workflow
+
+- Added a manual validation-only macOS workflow because the user-owned Telegram API secrets are not configured yet.
+- The validation workflow uses clearly nonfunctional placeholders, runs focused HTTP CONNECT tests, and compiles the complete release-arm64 application so Swift/Objective-C/Bazel integration failures can be found before the credentialed final build.
+- The placeholder-built IPA is never uploaded or represented as a usable client.

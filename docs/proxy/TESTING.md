@@ -22,6 +22,7 @@
 - `.github/workflows/build-sidestore-ipa.yml` is prepared but has not run. No device IPA or SideStore compatibility is claimed.
 - The target repository is a public GitHub fork, so the standard `macos-26` runner is free according to current GitHub billing documentation. No larger runner is configured.
 - Actions secret-name inspection found neither `TELEGRAM_API_ID` nor `TELEGRAM_API_HASH`; this is the current external blocker to dispatching a meaningful baseline build.
+- `.github/workflows/validate-proxy-fork.yml` provides a separate manual source-validation path. It uses explicit nonfunctional placeholders, runs `//submodules/MtProtoKit:MtProtoKitProxyTests`, compiles the complete release-arm64 app, and deliberately does not upload the resulting nonfunctional IPA.
 
 ## Evidence template
 
