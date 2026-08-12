@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Security
 
 import MtProtoKit
 import SwiftSignalKit
@@ -36,6 +37,7 @@ final class NetworkFrameworkTcpConnectionInterface: NSObject, MTTcpConnectionInt
         private var currentInterfaceIsWifi: Bool = true
         
         private var connectTimeoutTimer: SwiftSignalKit.Timer?
+        private var tlsServerName: String?
         
         private var usageCalculationInfo: MTNetworkUsageCalculationInfo?
         private var networkUsageManager: MTNetworkUsageManager?
@@ -69,6 +71,11 @@ final class NetworkFrameworkTcpConnectionInterface: NSObject, MTTcpConnectionInt
                 }
             }
         }
+
+        func setTlsServerName(_ tlsServerName: String?) {
+            precondition(self.connection == nil)
+            self.tlsServerName = tlsServerName
+        }
         
         func connect(host: String, port: UInt16, timeout: Double) {
             if self.connection != nil {
@@ -87,7 +94,17 @@ final class NetworkFrameworkTcpConnectionInterface: NSObject, MTTcpConnectionInt
             tcpOptions.keepaliveInterval = 5
             tcpOptions.enableFastOpen = true
             
-            let parameters = NWParameters(tls: nil, tcp: tcpOptions)
+            let tlsOptions: NWProtocolTLS.Options?
+            if let tlsServerName = self.tlsServerName {
+                let options = NWProtocolTLS.Options()
+                tlsServerName.withCString { serverName in
+                    sec_protocol_options_set_tls_server_name(options.securityProtocolOptions, serverName)
+                }
+                tlsOptions = options
+            } else {
+                tlsOptions = nil
+            }
+            let parameters = NWParameters(tls: tlsOptions, tcp: tcpOptions)
             let connection = NWConnection(host: host, port: port, using: parameters)
             self.connection = connection
             
@@ -320,6 +337,12 @@ final class NetworkFrameworkTcpConnectionInterface: NSObject, MTTcpConnectionInt
     func setUsageCalculationInfo(_ usageCalculationInfo: MTNetworkUsageCalculationInfo?) {
         self.impl.with { impl in
             impl.setUsageCalculationInfo(usageCalculationInfo)
+        }
+    }
+
+    func setTlsServerName(_ serverName: String?) {
+        self.impl.with { impl in
+            impl.setTlsServerName(serverName)
         }
     }
     

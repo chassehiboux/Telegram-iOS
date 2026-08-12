@@ -11,6 +11,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <CommonCrypto/CommonHMac.h>
 #import <Security/SecRandom.h>
+#import <CFNetwork/CFNetwork.h>
 
 #import <MtProtoKit/MTInternalId.h>
 
@@ -707,6 +708,7 @@ struct ctr_state {
 @interface MTGcdAsyncSocketTcpConnectionInterface: NSObject<MTTcpConnectionInterface, GCDAsyncSocketDelegate> {
     GCDAsyncSocket *_socket;
     __weak id<MTTcpConnectionInterfaceDelegate> _delegate;
+    NSString *_tlsServerName;
 }
 
 @end
@@ -728,6 +730,10 @@ struct ctr_state {
 
 - (void)setUsageCalculationInfo:(MTNetworkUsageCalculationInfo *)usageCalculationInfo {
     _socket.usageCalculationInfo = usageCalculationInfo;
+}
+
+- (void)setTlsServerName:(NSString *)serverName {
+    _tlsServerName = [serverName copy];
 }
 
 - (bool)connectToHost:(NSString *)inHost
@@ -770,6 +776,19 @@ struct ctr_state {
 }
 
 - (void)socket:(GCDAsyncSocket *)socket didConnectToHost:(NSString *)host port:(uint16_t)port {
+    if (_tlsServerName != nil) {
+        [_socket startTLS:@{
+            (__bridge NSString *)kCFStreamSSLPeerName: _tlsServerName
+        }];
+        return;
+    }
+    id<MTTcpConnectionInterfaceDelegate> delegate = _delegate;
+    if (delegate) {
+        [delegate connectionInterfaceDidConnect];
+    }
+}
+
+- (void)socketDidSecure:(GCDAsyncSocket *)socket {
     id<MTTcpConnectionInterfaceDelegate> delegate = _delegate;
     if (delegate) {
         [delegate connectionInterfaceDidConnect];
@@ -1093,7 +1112,7 @@ struct ctr_state {
                     
                     if (MTLogEnabled()) {
                         if (strongSelf->_httpProxyIp != nil) {
-                            MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via HTTP proxy %@:%d (credentials: %@)]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_httpProxyIp, (int)strongSelf->_httpProxyPort, (strongSelf->_httpProxyUsername.length != 0 || strongSelf->_httpProxyPassword.length != 0) ? @"yes" : @"no");
+                            MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via %@ proxy %@:%d (credentials: %@)]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_httpProxyTls ? @"HTTPS" : @"HTTP", strongSelf->_httpProxyIp, (int)strongSelf->_httpProxyPort, (strongSelf->_httpProxyUsername.length != 0 || strongSelf->_httpProxyPassword.length != 0) ? @"yes" : @"no");
                         } else if (strongSelf->_socksIp != nil) {
                             MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via %@:%d (credentials: %@)]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_socksIp, (int)strongSelf->_socksPort, (strongSelf->_socksUsername.length != 0 || strongSelf->_socksPassword.length != 0) ? @"yes" : @"no");
                         } else if (strongSelf->_mtpIp != nil) {
@@ -1103,15 +1122,30 @@ struct ctr_state {
                         }
                     }
                     
+                    if (strongSelf->_httpProxyIp != nil) {
+                        strongSelf->_httpConnectParser = [[MTHttpConnectParser alloc] initWithMaximumHeaderLength:16 * 1024];
+                        if (strongSelf->_httpProxyTls) {
+                            if ([strongSelf->_socket respondsToSelector:@selector(setTlsServerName:)]) {
+                                [strongSelf->_socket setTlsServerName:strongSelf->_httpProxyIp];
+                            } else {
+                                [strongSelf closeAndNotifyWithError:true];
+                                return;
+                            }
+                        }
+                    }
+
                     __autoreleasing NSError *error = nil;
                     if (![strongSelf->_socket connectToHost:connectionData.ip onPort:connectionData.port viaInterface:strongSelf->_interface withTimeout:12 error:&error] || error != nil) {
                         [strongSelf closeAndNotifyWithError:true];
                     } else if (strongSelf->_httpProxyIp != nil) {
-                        if (strongSelf->_httpProxyTls) {
-                            [strongSelf closeAndNotifyWithError:true];
-                            return;
-                        }
-                        strongSelf->_httpConnectParser = [[MTHttpConnectParser alloc] initWithMaximumHeaderLength:16 * 1024];
+                        __weak MTTcpConnection *weakSelf = strongSelf;
+                        strongSelf->_httpConnectTimeoutTimer = [[MTTimer alloc] initWithTimeout:12.0 repeat:false completion:^{
+                            __strong MTTcpConnection *timeoutSelf = weakSelf;
+                            if (timeoutSelf != nil) {
+                                [timeoutSelf closeAndNotifyWithError:true];
+                            }
+                        } queue:[[MTTcpConnection tcpQueue] nativeQueue]];
+                        [strongSelf->_httpConnectTimeoutTimer start];
                     } else if (strongSelf->_socksIp == nil) {
                         if (strongSelf->_mtpIp != nil && [strongSelf->_mtpSecret isKindOfClass:[MTProxySecretType2 class]]) {
                             MTProxySecretType2 *secret = (MTProxySecretType2 *)(strongSelf->_mtpSecret);
@@ -2093,6 +2127,9 @@ struct ctr_state {
              
 - (void)connectionInterfaceDidConnect
 {
+    if (_closed) {
+        return;
+    }
     if (_httpProxyIp != nil) {
         NSData *request = MTHttpConnectRequest(_scheme.address.ip, _scheme.address.port, _httpProxyUsername, _httpProxyPassword);
         if (request == nil) {
@@ -2101,14 +2138,6 @@ struct ctr_state {
         }
         [_socket writeData:request];
         [_socket readDataToLength:1 withTimeout:-1 tag:MTTcpHttpConnectResponseByte];
-        __weak MTTcpConnection *weakSelf = self;
-        _httpConnectTimeoutTimer = [[MTTimer alloc] initWithTimeout:12.0 repeat:false completion:^{
-            __strong MTTcpConnection *strongSelf = weakSelf;
-            if (strongSelf != nil) {
-                [strongSelf closeAndNotifyWithError:true];
-            }
-        } queue:[[MTTcpConnection tcpQueue] nativeQueue]];
-        [_httpConnectTimeoutTimer start];
     } else if (_socksIp != nil) {
         
     } else {

@@ -41,6 +41,9 @@
 - (void)disconnect;
 - (void)resetDelegate;
 
+@optional
+- (void)setTlsServerName:(NSString * _Nullable)serverName;
+
 @end
 
 

@@ -50,17 +50,18 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [ ] Verify direct, SOCKS5, MTProto proxy, saved switching, multi-DC, and media-preferred transports.
 - [ ] Review CI coverage and rerun focused validation.
 
-## Phase 7 — HTTPS CONNECT design (`TODO`)
+## Phase 7 — HTTPS CONNECT design (`DONE`)
 
-- [ ] Compare TLS in `MTTcpConnection`, connection-interface extension, and wrapper/decorator designs.
-- [ ] Confirm SNI, trust and hostname validation, reconnect, backend compatibility, testability, and rebase cost.
-- [ ] Document the selected design before editing.
+- [x] Compare TLS in `MTTcpConnection`, connection-interface extension, and wrapper/decorator designs.
+- [x] Confirm SNI, trust and hostname validation, reconnect, backend compatibility, testability, and rebase cost.
+- [x] Document the selected design before editing.
 
-## Phase 8 — HTTPS CONNECT implementation (`TODO`)
+## Phase 8 — HTTPS CONNECT implementation (`IN PROGRESS`)
 
-- [ ] Add TLS-to-proxy, CONNECT inside TLS, normal validation, no downgrade, fresh reconnect, and parser reuse.
+- [x] Add TLS-to-proxy, CONNECT inside TLS, normal validation, no downgrade, fresh reconnect, and parser reuse.
 - [ ] Test success/failure, hostname/certificate failure where possible, 407/200, and reconnect.
-- [ ] Run proxy review and CI; fix confirmed issues.
+- [x] Run an independent proxy review and fix confirmed source issues.
+- [ ] Run focused tests and the application build on macOS CI.
 
 ## Phase 9 — Public channel mute action placement (`TODO`)
 

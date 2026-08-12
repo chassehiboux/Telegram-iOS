@@ -47,3 +47,13 @@
 - Added a focused `//submodules/MtProtoKit:MtProtoKitProxyTests` XCTest target covering success, per-byte fragmentation, all 2xx, 407/403, malformed and oversized responses, auth, address forms, input validation, and trailing data.
 - An independent proxy review found no remaining blocking HTTP CONNECT defects after fixes. Transport-level callback/timeout/reconnect tests and macOS execution remain outstanding.
 - No HTTP runtime or build success is claimed until the focused macOS test and application build complete.
+
+## 2026-08-12 — HTTPS CONNECT implementation
+
+- Extended the connection-interface contract with pre-connect TLS configuration while retaining safe fail-closed behavior for custom interfaces without TLS support.
+- The GCDAsyncSocket backend now starts TLS after TCP connection, validates against the original proxy host with `kCFStreamSSLPeerName`, and reports readiness only from `socketDidSecure`.
+- The Network.framework backend now supplies `NWProtocolTLS.Options`, sets the original proxy host as the TLS server name, and retains Apple's default certificate/trust verification.
+- HTTPS sends CONNECT only after certificate-validated TLS is ready. TLS or hostname failures disconnect; there is no plaintext fallback.
+- A single 12-second outer deadline covers DNS completion followed by TCP, TLS, and CONNECT for each resolved attempt; close/reconnect constructs fresh interface, TLS, parser, and timer state.
+- An independent source review found no blocking HTTPS defects in either built-in backend. Added a closed-state callback guard and distinct HTTP/HTTPS diagnostics after the review.
+- TLS failure-path integration tests and Xcode 26.2 compilation/runtime evidence remain outstanding, so HTTPS is not yet claimed as verified.

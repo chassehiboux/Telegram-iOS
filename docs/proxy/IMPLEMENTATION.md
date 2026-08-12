@@ -22,4 +22,4 @@ Add `//submodules/MtProtoKit:MtProtoKitProxyTests` as an Objective-C `ios_unit_t
 
 ## Phase 4 implementation status
 
-Implemented the persisted HTTP case (`_t = 2`, explicit TLS flag), distinct editor modes, edit/reopen restoration, strict URL/editor host and port validation, explicit MtProtoKit connection type, SOCKS-only call filtering, fork-specific QR/internal links, settings labels, and password/log redaction. HTTP/HTTPS transport is not connected yet, so this phase is intentionally not marked validated or shippable.
+Implemented the persisted HTTP case (`_t = 2`, explicit TLS flag), distinct editor modes, edit/reopen restoration, strict URL/editor host and port validation, explicit MtProtoKit connection type, SOCKS-only call filtering, fork-specific QR/internal links, settings labels, and password/log redaction. HTTP uses a bounded CONNECT handshake; HTTPS first establishes certificate- and hostname-validated TLS to the proxy in either built-in network backend and sends the same CONNECT handshake inside TLS. Source review is complete, but macOS tests/build and runtime validation are still required before this is marked shippable.
