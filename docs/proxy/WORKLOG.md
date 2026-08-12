@@ -14,5 +14,6 @@
 - Mapped settings/persistence/MtProtoKit transport and selected `MTTcpConnection` as the source-backed candidate HTTP insertion point. Recorded open decisions and an existing credential-logging defect.
 - Confirmed the public fake-signed `release_arm64` build path and its coupling to upstream team/bundle identifiers. The fake profiles expire 2026-10-30.
 - Added a manual `macos-26` Apple-Silicon workflow that injects Telegram API credentials from Actions secrets, uses Xcode 26.2, builds device arm64, validates IPA structure/Mach-O platform, hashes, and uploads `TelegramProxy.ipa`.
-- The workflow has not been pushed or dispatched. macOS Actions may incur billable usage and requires user approval first.
+- Confirmed the GitHub repository is a public fork. Official GitHub documentation states standard hosted runners are free for public repositories; `macos-26` is a standard Apple Silicon label, so no billable larger runner is needed.
+- Actions secret-name inspection found no `TELEGRAM_API_ID` or `TELEGRAM_API_HASH`. The workflow is not dispatched because valid user-owned Telegram API credentials are required.
 - No build, device IPA, proxy functionality, or SideStore installation has been claimed.

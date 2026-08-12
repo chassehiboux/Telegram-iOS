@@ -20,6 +20,8 @@
 - Checked-in fake profiles are coupled to team `C67CF9S4VU` and bundle `ph.telegra.Telegraph`, expire 2026-10-30, and produce a fake-signed rather than unsigned IPA.
 - Initial baseline experiment may retain those profile-bound identifiers while injecting the user's API credentials from GitHub secrets. Final unique fork bundle ID still requires a focused profile/build adaptation.
 - `.github/workflows/build-sidestore-ipa.yml` is prepared but has not run. No device IPA or SideStore compatibility is claimed.
+- The target repository is a public GitHub fork, so the standard `macos-26` runner is free according to current GitHub billing documentation. No larger runner is configured.
+- Actions secret-name inspection found neither `TELEGRAM_API_ID` nor `TELEGRAM_API_HASH`; this is the current external blocker to dispatching a meaningful baseline build.
 
 ## Evidence template
 

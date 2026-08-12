@@ -10,7 +10,7 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [x] Inspect current proxy implementation without edits.
 - [x] Inspect public fake-codesigning/build path.
 - [x] Inspect local Windows tools (`git`, `gh`, `rg`, `python`) and GitHub CLI authentication.
-- [x] Determine repository visibility: `origin` URL is public; GitHub API metadata lookup was unreliable/time-limited and must be rechecked before dispatch.
+- [x] Determine repository visibility: public fork `chassehiboux/Telegram-iOS` of `TelegramMessenger/Telegram-iOS`.
 - [x] Establish baseline macOS CI strategy using standard Apple Silicon `macos-26` and Xcode 26.2.
 
 ## Phase 2 — Reproducible baseline SideStore-oriented IPA build (`IN PROGRESS`)
@@ -18,6 +18,7 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [x] Add manual macOS GitHub Actions workflow.
 - [x] Select and assert exact Xcode/macOS/Apple-Silicon requirements from `versions.json`.
 - [ ] Generate stable non-secret fork configuration; consume Telegram API credentials only from Actions secrets if required.
+- [ ] Configure missing Actions secrets `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` (user action; values must not enter Git or logs).
 - [ ] Build a device-arm64 IPA without Telegram private signing infrastructure.
 - [x] Add workflow validation for one `Payload/*.app`, main executable arm64, and iOS-not-simulator platform.
 - [ ] Upload and download `TelegramProxy.ipa`; record run, command, commit, and SHA-256.

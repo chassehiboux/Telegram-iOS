@@ -116,11 +116,11 @@ jobs:
           archs="$(lipo -archs "$executable")"
           [[ "$archs" == "arm64" ]] || { echo "Expected device arm64 only, got: $archs" >&2; exit 1; }
           xcrun vtool -show-build "$executable" | tee "$output_dir/macho-build.txt"
-          grep -Eq 'platform[[:space:]]+IOS$' "$output_dir/macho-build.txt" || {
+          grep -Eq 'platform[[:space:]]+IOS[[:space:]]*$' "$output_dir/macho-build.txt" || {
             echo "Main executable is not an iOS device binary." >&2
             exit 1
           }
-          ! grep -Eq 'platform[[:space:]]+IOSSIMULATOR$' "$output_dir/macho-build.txt" || exit 1
+          ! grep -Eq 'platform[[:space:]]+IOSSIMULATOR[[:space:]]*$' "$output_dir/macho-build.txt" || exit 1
 
           cp "$source_ipa" "$output_dir/TelegramProxy.ipa"
           shasum -a 256 "$output_dir/TelegramProxy.ipa" | tee "$output_dir/TelegramProxy.ipa.sha256"
