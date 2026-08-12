@@ -397,7 +397,22 @@ extension PeerInfoScreenNode {
                 let headerButtons = Set(peerInfoHeaderButtons(peer: peer, cachedData: data.cachedData, isOpenedFromChat: strongSelf.isOpenedFromChat, isExpanded: true, videoCallsEnabled: strongSelf.videoCallsEnabled, isSecretChat: strongSelf.peerId.namespace == Namespaces.Peer.SecretChat, isContact: strongSelf.data?.isContact ?? false, threadInfo: strongSelf.data?.threadData?.info))
                 
                 let filteredButtons = allHeaderButtons.subtracting(headerButtons)
-                
+
+                let isPublicBroadcast = data.threadData == nil && peerInfoIsPublicBroadcast(peer)
+
+                if isPublicBroadcast {
+                    let chatIsMuted = peerInfoIsChatMuted(peer: peer, peerNotificationSettings: data.peerNotificationSettings, threadNotificationSettings: data.threadNotificationSettings, globalNotificationSettings: data.globalNotificationSettings)
+                    items.append(.action(ContextMenuActionItem(text: chatIsMuted ? presentationData.strings.PeerInfo_ButtonUnmute : presentationData.strings.PeerInfo_ButtonMute, icon: { theme in
+                        return generateTintedImage(image: UIImage(bundleImageName: chatIsMuted ? "Chat/Context Menu/Unmute" : "Chat/Context Menu/Muted"), color: theme.contextMenu.primaryColor)
+                    }, action: { [weak self] _, f in
+                        f(.default)
+                        guard let self else {
+                            return
+                        }
+                        let _ = self.context.engine.peers.togglePeerMuted(peerId: peer.id, threadId: self.chatLocation.threadId).startStandalone()
+                    })))
+                }
+
                 var currentAutoremoveTimeout: Int32?
                 if let cachedData = data.cachedData as? CachedUserData {
                     switch cachedData.autoremoveTimeout {

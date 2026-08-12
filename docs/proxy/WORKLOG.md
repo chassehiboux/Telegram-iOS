@@ -57,3 +57,11 @@
 - A single 12-second outer deadline covers DNS completion followed by TCP, TLS, and CONNECT for each resolved attempt; close/reconnect constructs fresh interface, TLS, parser, and timer state.
 - An independent source review found no blocking HTTPS defects in either built-in backend. Added a closed-state callback guard and distinct HTTP/HTTPS diagnostics after the review.
 - TLS failure-path integration tests and Xcode 26.2 compilation/runtime evidence remain outstanding, so HTTPS is not yet claimed as verified.
+
+## 2026-08-12 — Public-channel mute action placement
+
+- Traced the lower subscriber panel to its canonical `togglePeerMuted` behavior and the public info header/More menu construction.
+- For public broadcast channels with a nonempty username, removed the lower `Mute` / `Unmute` center action and the duplicate notification button from the info header.
+- Public broadcast root info now always exposes `More`, whose first state-aware action toggles notifications through the same canonical binary API and respects explicit plus global channel settings. Topic/thread notification controls retain their existing behavior.
+- Private broadcast channels, public/private supergroups, legacy groups, users, Join, search, gifts, suggestions, and other lower-panel actions retain their prior branches.
+- Source review and macOS build/UI validation remain outstanding; no UI runtime claim is made yet.

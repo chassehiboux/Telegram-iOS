@@ -101,7 +101,16 @@ private func actionForPeer(context: AccountContext, peer: EnginePeer, interfaceS
         }
     } else {
         if case let .channel(channel) = peer {
+            let isPublicBroadcast: Bool
+            if case .broadcast = channel.info, let addressName = channel.addressName, !addressName.isEmpty {
+                isPublicBroadcast = true
+            } else {
+                isPublicBroadcast = false
+            }
             if case .broadcast = channel.info, isJoining {
+                if isPublicBroadcast {
+                    return nil
+                }
                 if isMuted {
                     return .unmuteNotifications
                 } else {
@@ -126,6 +135,9 @@ private func actionForPeer(context: AccountContext, peer: EnginePeer, interfaceS
                         return .join
                     }
                 case .member:
+                    if isPublicBroadcast {
+                        return nil
+                    }
                     if isMuted {
                         return .unmuteNotifications
                     } else {
@@ -416,6 +428,7 @@ public final class ChatChannelSubscriberInputPanelNode: ChatInputPanelNode {
         self.presentationInterfaceState = interfaceState
         
         var centerAction: (title: String, isAccent: Bool)?
+        self.action = nil
         if let context = self.context, let peer = interfaceState.renderedPeer?.peer, let action = actionForPeer(context: context, peer: EnginePeer(peer), interfaceState: interfaceState, isJoining: self.isJoining, isMuted: interfaceState.peerIsMuted) {
             self.action = action
             let (title, _) = titleAndColorForAction(action, theme: interfaceState.theme, strings: interfaceState.strings)
@@ -510,7 +523,8 @@ public final class ChatChannelSubscriberInputPanelNode: ChatInputPanelNode {
             ))
         }
         
-        let panelHeight = defaultHeight(metrics: metrics)
+        let hasAnyPanelItem = !leftPanelItems.isEmpty || centerPanelItem != nil || !rightPanelItems.isEmpty
+        let panelHeight = hasAnyPanelItem ? defaultHeight(metrics: metrics) : 0.0
         let _ = isFirstTime
         let panelFrame = CGRect(origin: CGPoint(x: leftInset, y: 0.0), size: CGSize(width: width - leftInset - rightInset, height: panelHeight))
         

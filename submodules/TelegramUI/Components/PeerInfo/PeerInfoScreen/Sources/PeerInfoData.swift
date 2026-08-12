@@ -2574,6 +2574,13 @@ func peerInfoHeaderActionButtons(peer: EnginePeer?, isSecretChat: Bool, isContac
     return result
 }
 
+func peerInfoIsPublicBroadcast(_ peer: EnginePeer?) -> Bool {
+    if case let .channel(channel) = peer, case .broadcast = channel.info, let addressName = channel.addressName, !addressName.isEmpty {
+        return true
+    }
+    return false
+}
+
 func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpenedFromChat: Bool, isExpanded: Bool, videoCallsEnabled: Bool, isSecretChat: Bool, isContact: Bool, threadInfo: EngineMessageHistoryThread.Info?) -> [PeerInfoHeaderButtonKey] {
     var result: [PeerInfoHeaderButtonKey] = []
     if case let .user(user) = peer {
@@ -2611,6 +2618,7 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
             result.append(.more)
         }
     } else if case let .channel(channel) = peer {
+        let isPublicBroadcast = peerInfoIsPublicBroadcast(peer)
         if let _ = threadInfo {
             result.append(.mute)
             result.append(.search)
@@ -2648,7 +2656,9 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
             if case let .broadcast(info) = channel.info, info.flags.contains(.hasMonoforum), !channel.hasPermission(.manageDirect) {
                 result.append(.message)
             }
-            result.append(.mute)
+            if !isPublicBroadcast {
+                result.append(.mute)
+            }
             if case let .broadcast(info) = channel.info, info.flags.contains(.hasMonoforum), !channel.hasPermission(.manageDirect) {
             } else if hasDiscussion {
                 result.append(.discussion)
@@ -2664,7 +2674,7 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
             }
             
             var hasMore = false
-            if canReport || canViewStats {
+            if isPublicBroadcast || canReport || canViewStats {
                 hasMore = true
                 result.append(.more)
             }

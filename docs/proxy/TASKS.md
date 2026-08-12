@@ -63,13 +63,13 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [x] Run an independent proxy review and fix confirmed source issues.
 - [ ] Run focused tests and the application build on macOS CI.
 
-## Phase 9 — Public channel mute action placement (`TODO`)
+## Phase 9 — Public channel mute action placement (`IN PROGRESS`)
 
-- [ ] Trace the public-channel bottom action and the public info screen's `More` menu.
-- [ ] Hide the bottom `Mute` / `Unmute` button when viewing a public channel.
-- [ ] Add the same state-aware `Mute` / `Unmute` action to `Public Info -> More`.
-- [ ] Preserve the current notification-setting behavior and immediate label/state update.
-- [ ] Verify private chats, groups, non-public channels, and unrelated bottom actions are unchanged.
+- [x] Trace the public-channel bottom action and the public info screen's `More` menu.
+- [x] Hide the bottom `Mute` / `Unmute` button when viewing a public channel.
+- [x] Move the state-aware `Mute` / `Unmute` action to `Public Info -> More` and ensure `More` is available.
+- [x] Preserve the current notification-setting behavior and immediate state update through the existing binary toggle.
+- [x] Verify by source review that private chats, groups, non-public channels, topics, and unrelated bottom actions retain their prior branches.
 - [ ] Run the relevant focused macOS build/tests and record evidence before marking complete.
 
 ## Phase 10 — Final regression and IPA release (`TODO`)
