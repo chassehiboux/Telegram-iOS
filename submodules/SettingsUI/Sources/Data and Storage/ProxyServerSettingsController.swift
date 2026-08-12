@@ -38,6 +38,8 @@ private enum ProxySettingsEntry: ItemListNodeEntry {
     
     case modeSocks5(PresentationTheme, String, Bool)
     case modeMtp(PresentationTheme, String, Bool)
+    case modeHttp(PresentationTheme, String, Bool)
+    case modeHttps(PresentationTheme, String, Bool)
     
     case connectionHeader(PresentationTheme, String)
     case connectionServer(PresentationTheme, PresentationStrings, String, String)
@@ -54,7 +56,7 @@ private enum ProxySettingsEntry: ItemListNodeEntry {
         switch self {
             case .usePasteboardSettings, .usePasteboardInfo:
                 return ProxySettingsSection.pasteboard.rawValue
-            case .modeSocks5, .modeMtp:
+            case .modeSocks5, .modeMtp, .modeHttp, .modeHttps:
                 return ProxySettingsSection.mode.rawValue
             case .connectionHeader, .connectionServer, .connectionPort:
                 return ProxySettingsSection.connection.rawValue
@@ -75,22 +77,26 @@ private enum ProxySettingsEntry: ItemListNodeEntry {
                 return 2
             case .modeMtp:
                 return 3
-            case .connectionHeader:
+            case .modeHttp:
                 return 4
-            case .connectionServer:
+            case .modeHttps:
                 return 5
-            case .connectionPort:
+            case .connectionHeader:
                 return 6
-            case .credentialsHeader:
+            case .connectionServer:
                 return 7
-            case .credentialsUsername:
+            case .connectionPort:
                 return 8
-            case .credentialsPassword:
+            case .credentialsHeader:
                 return 9
-            case .credentialsSecret:
+            case .credentialsUsername:
                 return 10
-            case .share:
+            case .credentialsPassword:
+                return 11
+            case .credentialsSecret:
                 return 12
+            case .share:
+                return 13
         }
     }
     
@@ -120,6 +126,22 @@ private enum ProxySettingsEntry: ItemListNodeEntry {
                     arguments.updateState { state in
                         var state = state
                         state.mode = .mtp
+                        return state
+                    }
+                })
+            case let .modeHttp(_, text, value):
+                return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: text, style: .left, checked: value, zeroSeparatorInsets: false, sectionId: self.section, action: {
+                    arguments.updateState { state in
+                        var state = state
+                        state.mode = .http
+                        return state
+                    }
+                })
+            case let .modeHttps(_, text, value):
+                return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: text, style: .left, checked: value, zeroSeparatorInsets: false, sectionId: self.section, action: {
+                    arguments.updateState { state in
+                        var state = state
+                        state.mode = .https
                         return state
                     }
                 })
@@ -178,6 +200,8 @@ private enum ProxySettingsEntry: ItemListNodeEntry {
 private enum ProxyServerSettingsControllerMode {
     case socks5
     case mtp
+    case http
+    case https
 }
 
 private struct ProxyServerSettingsControllerState: Equatable {
@@ -189,11 +213,12 @@ private struct ProxyServerSettingsControllerState: Equatable {
     var secret: String
     
     var isComplete: Bool {
-        if self.host.isEmpty || self.port.isEmpty || Int(self.port) == nil {
+        let host = self.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !host.isEmpty, let port = Int(self.port), (1 ... 65535).contains(port) else {
             return false
         }
         switch self.mode {
-            case .socks5:
+            case .socks5, .http, .https:
                 break
             case .mtp:
                 let secretIsValid = MTProxySecret.parse(self.secret) != nil
@@ -214,13 +239,15 @@ private func proxyServerSettingsControllerEntries(presentationData: Presentation
     
     entries.append(.modeSocks5(presentationData.theme, presentationData.strings.SocksProxySetup_ProxySocks5, state.mode == .socks5))
     entries.append(.modeMtp(presentationData.theme, presentationData.strings.SocksProxySetup_ProxyTelegram, state.mode == .mtp))
+    entries.append(.modeHttp(presentationData.theme, "HTTP", state.mode == .http))
+    entries.append(.modeHttps(presentationData.theme, "HTTPS", state.mode == .https))
     
     entries.append(.connectionHeader(presentationData.theme, presentationData.strings.SocksProxySetup_Connection.uppercased()))
     entries.append(.connectionServer(presentationData.theme, presentationData.strings, presentationData.strings.SocksProxySetup_Hostname, state.host))
     entries.append(.connectionPort(presentationData.theme, presentationData.strings, presentationData.strings.SocksProxySetup_Port, state.port))
     
     switch state.mode {
-        case .socks5:
+        case .socks5, .http, .https:
             entries.append(.credentialsHeader(presentationData.theme, presentationData.strings.SocksProxySetup_Credentials))
             entries.append(.credentialsUsername(presentationData.theme, presentationData.strings, presentationData.strings.SocksProxySetup_Username, state.username))
             entries.append(.credentialsPassword(presentationData.theme, presentationData.strings, presentationData.strings.SocksProxySetup_Password, state.password))
@@ -236,14 +263,19 @@ private func proxyServerSettingsControllerEntries(presentationData: Presentation
 
 private func proxyServerSettings(with state: ProxyServerSettingsControllerState) -> ProxyServerSettings? {
     if state.isComplete, let port = Int32(state.port) {
+        let host = state.host.trimmingCharacters(in: .whitespacesAndNewlines)
         switch state.mode {
             case .socks5:
-                return ProxyServerSettings(host: state.host, port: port, connection: .socks5(username: state.username.isEmpty ? nil : state.username, password: state.password.isEmpty ? nil : state.password))
+                return ProxyServerSettings(host: host, port: port, connection: .socks5(username: state.username.isEmpty ? nil : state.username, password: state.password.isEmpty ? nil : state.password))
             case .mtp:
                 let parsedSecret = MTProxySecret.parse(state.secret)
                 if let parsedSecret = parsedSecret {
-                    return ProxyServerSettings(host: state.host, port: port, connection: .mtp(secret: parsedSecret.serialize()))
+                    return ProxyServerSettings(host: host, port: port, connection: .mtp(secret: parsedSecret.serialize()))
                 }
+            case .http:
+                return ProxyServerSettings(host: host, port: port, connection: .http(username: state.username.isEmpty ? nil : state.username, password: state.password.isEmpty ? nil : state.password, tls: false))
+            case .https:
+                return ProxyServerSettings(host: host, port: port, connection: .http(username: state.username.isEmpty ? nil : state.username, password: state.password.isEmpty ? nil : state.password, tls: true))
         }
     }
     return nil
@@ -269,10 +301,16 @@ func proxyServerSettingsController(sharedContext: SharedAccountContext, context:
             case let .mtp(secret):
                 currentSecret = hexString(secret)
                 currentMode = .mtp
+            case let .http(username, password, tls):
+                currentUsername = username
+                currentPassword = password
+                currentMode = tls ? .https : .http
         }
     } else {
         if let proxy = parseProxyUrl(sharedContext: sharedContext, url: UIPasteboard.general.string ?? "") {
-            if let secret = proxy.secret, let parsedSecret = MTProxySecret.parseData(secret) {
+            if let httpTls = proxy.httpTls {
+                pasteboardSettings = ProxyServerSettings(host: proxy.host, port: proxy.port, connection: .http(username: proxy.username, password: proxy.password, tls: httpTls))
+            } else if let secret = proxy.secret, let parsedSecret = MTProxySecret.parseData(secret) {
                 pasteboardSettings = ProxyServerSettings(host: proxy.host, port: proxy.port, connection: .mtp(secret: parsedSecret.serialize()))
             } else {
                 pasteboardSettings = ProxyServerSettings(host: proxy.host, port: proxy.port, connection: .socks5(username: proxy.username, password: proxy.password))
@@ -310,6 +348,10 @@ func proxyServerSettingsController(sharedContext: SharedAccountContext, context:
                     case let .mtp(secret):
                         state.mode = .mtp
                         state.secret = hexString(secret)
+                    case let .http(username, password, tls):
+                        state.mode = tls ? .https : .http
+                        state.username = username ?? ""
+                        state.password = password ?? ""
                 }
                 return state
             }

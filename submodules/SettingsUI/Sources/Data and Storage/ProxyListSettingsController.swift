@@ -287,6 +287,8 @@ private func proxySettingsControllerEntries(theme: PresentationTheme, strings: P
                     text = strings.ChatSettings_ConnectionType_UseSocks5
                 case .mtp:
                     text = strings.SocksProxySetup_ProxyTelegram
+                case let .http(_, _, tls):
+                    text = tls ? "HTTPS" : "HTTP"
             }
             switch status {
                 case .notAvailable:
@@ -550,6 +552,15 @@ public func proxySettingsController(accountManager: AccountManager<TelegramAccou
                         string = "https://t.me/socks?server=\(server.host)&port=\(server.port)"
                         if let username = username, let password = password {
                             string += "&user=\((username as NSString).addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")&pass=\((password as NSString).addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
+                        }
+                    case let .http(username, password, tls):
+                        let host = server.host.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? ""
+                        string = "tg://\(tls ? "https-proxy" : "http-proxy")?server=\(host)&port=\(server.port)"
+                        if let username, !username.isEmpty {
+                            string += "&user=\((username as NSString).addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
+                        }
+                        if let password, !password.isEmpty {
+                            string += "&pass=\((password as NSString).addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
                         }
                     }
                     

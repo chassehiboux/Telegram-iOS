@@ -508,6 +508,14 @@ public final class QrCodeScreen: ViewControllerComponentContainer {
                     if let password, !password.isEmpty {
                         link += "&pass=\(password.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
                     }
+                case let .http(username, password, tls):
+                    link = "tg://\(tls ? "https-proxy" : "http-proxy")?server=\(serverHost)&port=\(server.port)"
+                    if let username, !username.isEmpty {
+                        link += "&user=\(username.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
+                    }
+                    if let password, !password.isEmpty {
+                        link += "&pass=\(password.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryValueAllowed) ?? "")"
+                    }
                 }
                 return link
             }

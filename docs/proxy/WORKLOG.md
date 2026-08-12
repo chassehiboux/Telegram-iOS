@@ -17,3 +17,23 @@
 - Confirmed the GitHub repository is a public fork. Official GitHub documentation states standard hosted runners are free for public repositories; `macos-26` is a standard Apple Silicon label, so no billable larger runner is needed.
 - Actions secret-name inspection found no `TELEGRAM_API_ID` or `TELEGRAM_API_HASH`. The workflow is not dispatched because valid user-owned Telegram API credentials are required.
 - No build, device IPA, proxy functionality, or SideStore installation has been claimed.
+
+## 2026-08-12 — Public-channel UI task queued before final IPA
+
+- Added a post-Phase-9 task requested by the user: remove the bottom `Mute` / `Unmute` action from public channels and expose the same state-aware action under `Public Info -> More`.
+- Corrected sequencing after user clarification: this UI change is Phase 9 and must be completed before Phase 10 final regression and IPA build, so the delivered IPA contains both feature sets.
+- The Phase 2 baseline IPA remains an early CI/build-path proof only and is not the final deliverable.
+
+## 2026-08-12 — Phase 3 architecture investigation
+
+- Ran independent read-only investigations for settings/storage/sharing, MtProtoKit transport/TLS, and Bazel testability.
+- Selected a single persisted HTTP model case with explicit TLS flag and new `_t = 2`; preserved existing tags 0/1 and the legacy top-level SOCKS fallback.
+- Chose distinct HTTP/HTTPS editor modes, strict host/port validation, SOCKS-only calls, masked credentials, and fork-specific internal share schemes.
+- Identified every exhaustive Swift connection-type switch and the status-probe path that must be updated.
+- Confirmed the minimal focused Objective-C XCTest target shape and iPhone 17 / iOS 26.2 runner for Xcode 26.2.
+- Corrected the documented direct readiness nuance: MTProto writes may be submitted to the backend once async connect starts, while the backend queues until actual connection and the open callback reports transport readiness.
+- Selected one-byte exact reads for the initial CONNECT handshake to avoid over-read/deadlock with the current interface; the parser will still return trailing bytes for tests and future chunk reads.
+- Selected pre-connect TLS configuration on `MTTcpConnectionInterface` for both GCDAsyncSocket and Network.framework, with the original proxy hostname for SNI/hostname validation and default platform trust intact.
+- Implemented the Phase 4 model/UI/storage/link layer and ran an independent read-only proxy review.
+- Fixed review findings: shared URL port validation, monotonic editor stable IDs, transport credential/secret log redaction, and SOCKS-only filtering at `PresentationCallManager`.
+- HTTP/HTTPS transport remains unimplemented at this checkpoint; no functional proxy claim is made.

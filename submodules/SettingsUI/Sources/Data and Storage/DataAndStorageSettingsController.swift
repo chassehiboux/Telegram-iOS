@@ -653,6 +653,8 @@ private func dataAndStorageControllerEntries(context: AccountContext, state: Dat
                 proxyValue = presentationData.strings.ChatSettings_ConnectionType_UseSocks5
             case .mtp:
                 proxyValue = presentationData.strings.SocksProxySetup_ProxyTelegram
+            case let .http(_, _, tls):
+                proxyValue = tls ? "HTTPS" : "HTTP"
         }
     } else {
         proxyValue = presentationData.strings.GroupInfo_SharedMediaNone

@@ -31,6 +31,13 @@
 
 @end
 
+typedef NS_ENUM(int32_t, MTProxyConnectionType) {
+    MTProxyConnectionTypeSocks5 = 0,
+    MTProxyConnectionTypeMtproto = 1,
+    MTProxyConnectionTypeHttp = 2,
+    MTProxyConnectionTypeHttps = 3
+};
+
 @interface MTSocksProxySettings : NSObject
 
 @property (nonatomic, strong, readonly) NSString * _Nonnull ip;
@@ -38,8 +45,10 @@
 @property (nonatomic, strong, readonly) NSString * _Nullable username;
 @property (nonatomic, strong, readonly) NSString * _Nullable password;
 @property (nonatomic, strong, readonly) NSData * _Nullable secret;
+@property (nonatomic, readonly) MTProxyConnectionType connectionType;
 
 - (instancetype _Nonnull)initWithIp:(NSString * _Nonnull )ip port:(uint16_t)port username:(NSString * _Nullable)username password:(NSString * _Nullable)password secret:(NSData * _Nullable)secret;
+- (instancetype _Nonnull)initWithIp:(NSString * _Nonnull )ip port:(uint16_t)port username:(NSString * _Nullable)username password:(NSString * _Nullable)password secret:(NSData * _Nullable)secret connectionType:(MTProxyConnectionType)connectionType;
 
 @end
 

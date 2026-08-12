@@ -288,8 +288,8 @@ public final class PresentationCallManagerImpl: PresentationCallManager {
         self.proxyServerDisposable = (accountManager.sharedData(keys: [SharedDataKeys.proxySettings])
         |> deliverOnMainQueue).start(next: { [weak self] sharedData in
             if let strongSelf = self, let settings = sharedData.entries[SharedDataKeys.proxySettings]?.get(ProxySettings.self) {
-                if settings.enabled && settings.useForCalls {
-                    strongSelf.proxyServer = settings.activeServer
+                if settings.enabled && settings.useForCalls, let activeServer = settings.activeServer, case .socks5 = activeServer.connection {
+                    strongSelf.proxyServer = activeServer
                 } else {
                     strongSelf.proxyServer = nil
                 }

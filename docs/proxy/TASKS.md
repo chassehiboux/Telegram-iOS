@@ -23,14 +23,14 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [x] Add workflow validation for one `Payload/*.app`, main executable arm64, and iOS-not-simulator platform.
 - [ ] Upload and download `TelegramProxy.ipa`; record run, command, commit, and SHA-256.
 
-## Phase 3 — Proxy architecture mapping (`TODO`)
+## Phase 3 — Proxy architecture mapping (`DONE`)
 
-- [ ] Trace settings UI, model, persistence, URL sharing, and MtProtoKit conversion.
-- [ ] Trace `MTSocksProxySettings`, transport, connection interfaces, SOCKS5/MTProto handshakes, readiness, buffering, reconnect, timeout, and TLS facilities.
-- [ ] Identify test targets and the minimal HTTP insertion point.
-- [ ] Document HTTP lifecycle and compare HTTPS designs in `ARCHITECTURE.md`.
+- [x] Trace settings UI, model, persistence, URL sharing, and MtProtoKit conversion.
+- [x] Trace `MTSocksProxySettings`, transport, both connection interfaces, SOCKS5/MTProto handshakes, readiness, buffering, reconnect, timeout, and TLS facilities.
+- [x] Identify the focused test target pattern and `MTTcpConnection` as the minimal HTTP insertion point.
+- [x] Document HTTP lifecycle and compare/select the HTTPS interface design in `ARCHITECTURE.md`.
 
-## Phase 4 — Data model, persistence, and UI (`TODO`)
+## Phase 4 — Data model, persistence, and UI (`IN PROGRESS`)
 
 - [ ] Add unambiguous HTTP and HTTPS modes with host, port, and optional credentials.
 - [ ] Preserve old Codable identifiers and all SOCKS5/MTProto UI behavior.
@@ -61,8 +61,18 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [ ] Test success/failure, hostname/certificate failure where possible, 407/200, and reconnect.
 - [ ] Run proxy review and CI; fix confirmed issues.
 
-## Phase 9 — Final regression and IPA release (`TODO`)
+## Phase 9 — Public channel mute action placement (`TODO`)
+
+- [ ] Trace the public-channel bottom action and the public info screen's `More` menu.
+- [ ] Hide the bottom `Mute` / `Unmute` button when viewing a public channel.
+- [ ] Add the same state-aware `Mute` / `Unmute` action to `Public Info -> More`.
+- [ ] Preserve the current notification-setting behavior and immediate label/state update.
+- [ ] Verify private chats, groups, non-public channels, and unrelated bottom actions are unchanged.
+- [ ] Run the relevant focused macOS build/tests and record evidence before marking complete.
+
+## Phase 10 — Final regression and IPA release (`TODO`)
 
 - [ ] Validate direct, SOCKS5, MTProto, HTTP, and HTTPS modes plus proxy UI/persistence compatibility.
-- [ ] Produce final device-arm64 `artifacts/TelegramProxy.ipa`.
+- [ ] Validate the public-channel mute action placement and regressions.
+- [ ] Produce final device-arm64 `artifacts/TelegramProxy.ipa` containing both proxy and public-channel UI changes.
 - [ ] Record SHA-256, final run/build evidence, limitations, and SideStore installation status.

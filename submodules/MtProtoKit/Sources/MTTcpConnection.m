@@ -1061,13 +1061,9 @@ struct ctr_state {
                     
                     if (MTLogEnabled()) {
                         if (strongSelf->_socksIp != nil) {
-                            if (strongSelf->_socksUsername.length == 0) {
-                                MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via %@:%d]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_socksIp, (int)strongSelf->_socksPort);
-                            } else {
-                                MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via %@:%d using %@:%@]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_socksIp, (int)strongSelf->_socksPort, strongSelf->_socksUsername, strongSelf->_socksPassword);
-                            }
+                            MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via %@:%d (credentials: %@)]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_socksIp, (int)strongSelf->_socksPort, (strongSelf->_socksUsername.length != 0 || strongSelf->_socksPassword.length != 0) ? @"yes" : @"no");
                         } else if (strongSelf->_mtpIp != nil) {
-                            MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via mtp://%@:%d:%@]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_mtpIp, (int)strongSelf->_mtpPort, strongSelf->_mtpSecret);
+                            MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via MTProto proxy %@:%d]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_mtpIp, (int)strongSelf->_mtpPort);
                         } else {
                             MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port);
                         }

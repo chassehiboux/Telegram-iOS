@@ -16,6 +16,8 @@ extension ProxyServerSettings {
                 return MTSocksProxySettings(ip: self.host, port: UInt16(clamping: self.port), username: username, password: password, secret: nil)
             case let .mtp(secret):
                 return MTSocksProxySettings(ip: self.host, port: UInt16(clamping: self.port), username: nil, password: nil, secret: secret)
+            case let .http(username, password, tls):
+                return MTSocksProxySettings(ip: self.host, port: UInt16(clamping: self.port), username: username, password: password, secret: nil, connectionType: tls ? .https : .http)
         }
     }
 }

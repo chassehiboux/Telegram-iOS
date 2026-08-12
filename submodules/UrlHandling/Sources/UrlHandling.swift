@@ -135,7 +135,7 @@ public enum ParsedInternalUrl {
     case join(String)
     case joinCall(String)
     case localization(String)
-    case proxy(host: String, port: Int32, username: String?, password: String?, secret: Data?)
+    case proxy(host: String, port: Int32, username: String?, password: String?, secret: Data?, httpTls: Bool?)
     case internalInstantView(url: String)
     case confirmationCode(Int)
     case cancelAccountReset(phone: String, hash: String)
@@ -211,7 +211,7 @@ public func parseInternalUrl(sharedContext: SharedAccountContext, context: Accou
             }
             if pathComponents.count == 1 {
                 if let queryItems = components.queryItems {
-                    if peerName == "socks" || peerName == "proxy" {
+                    if peerName == "socks" || peerName == "proxy" || peerName == "http-proxy" || peerName == "https-proxy" {
                         var server: String?
                         var port: String?
                         var user: String?
@@ -238,8 +238,16 @@ public func parseInternalUrl(sharedContext: SharedAccountContext, context: Accou
                             }
                         }
                         
-                        if let server = server, !server.isEmpty, let port = port, let portValue = Int32(port) {
-                            return .proxy(host: server, port: portValue, username: user, password: pass, secret: secret)
+                        if let server = server?.trimmingCharacters(in: .whitespacesAndNewlines), !server.isEmpty, let port = port, let portValue = Int32(port), (1 ... 65535).contains(portValue) {
+                            let httpTls: Bool?
+                            if peerName == "http-proxy" {
+                                httpTls = false
+                            } else if peerName == "https-proxy" {
+                                httpTls = true
+                            } else {
+                                httpTls = nil
+                            }
+                            return .proxy(host: server, port: portValue, username: user, password: pass, secret: secret, httpTls: httpTls)
                         }
                     } else if peerName == "iv" {
                         var url: String?
@@ -1250,8 +1258,8 @@ private func resolveInternalUrl(context: AccountContext, url: ParsedInternalUrl)
             return .single(.result(.joinCall(link)))
         case let .localization(identifier):
             return .single(.result(.localization(identifier)))
-        case let .proxy(host, port, username, password, secret):
-            return .single(.result(.proxy(host: host, port: port, username: username, password: password, secret: secret)))
+        case let .proxy(host, port, username, password, secret, httpTls):
+            return .single(.result(.proxy(host: host, port: port, username: username, password: password, secret: secret, httpTls: httpTls)))
         case let .internalInstantView(url):
             return resolveInstantViewUrl(account: context.account, url: url)
             |> map { result in
@@ -1407,21 +1415,21 @@ public func isTelegraPhLink(_ url: String) -> Bool {
     return false
 }
 
-public func parseProxyUrl(sharedContext: SharedAccountContext, url: String) -> (host: String, port: Int32, username: String?, password: String?, secret: Data?)? {
+public func parseProxyUrl(sharedContext: SharedAccountContext, url: String) -> (host: String, port: Int32, username: String?, password: String?, secret: Data?, httpTls: Bool?)? {
     let schemes = ["http://", "https://", ""]
     for basePath in baseTelegramMePaths {
         for scheme in schemes {
             let basePrefix = scheme + basePath + "/"
             if url.lowercased().hasPrefix(basePrefix) {
-                if let internalUrl = parseInternalUrl(sharedContext: sharedContext, context: nil, query: String(url[basePrefix.endIndex...])), case let .proxy(host, port, username, password, secret) = internalUrl {
-                    return (host, port, username, password, secret)
+                if let internalUrl = parseInternalUrl(sharedContext: sharedContext, context: nil, query: String(url[basePrefix.endIndex...])), case let .proxy(host, port, username, password, secret, httpTls) = internalUrl {
+                    return (host, port, username, password, secret, httpTls)
                 }
             }
         }
     }
     if let parsedUrl = URL(string: url), parsedUrl.scheme == "tg", let host = parsedUrl.host, let query = parsedUrl.query {
-        if let internalUrl = parseInternalUrl(sharedContext: sharedContext, context: nil, query: host + "?" + query), case let .proxy(host, port, username, password, secret) = internalUrl {
-            return (host, port, username, password, secret)
+        if let internalUrl = parseInternalUrl(sharedContext: sharedContext, context: nil, query: host + "?" + query), case let .proxy(host, port, username, password, secret, httpTls) = internalUrl {
+            return (host, port, username, password, secret, httpTls)
         }
     }
     

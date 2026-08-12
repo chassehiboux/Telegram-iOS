@@ -290,6 +290,10 @@ static NSData *base64_decode(NSString *str) {
 @implementation MTSocksProxySettings
 
 - (instancetype)initWithIp:(NSString *)ip port:(uint16_t)port username:(NSString *)username password:(NSString *)password secret:(NSData *)secret {
+    return [self initWithIp:ip port:port username:username password:password secret:secret connectionType:secret == nil ? MTProxyConnectionTypeSocks5 : MTProxyConnectionTypeMtproto];
+}
+
+- (instancetype)initWithIp:(NSString *)ip port:(uint16_t)port username:(NSString *)username password:(NSString *)password secret:(NSData *)secret connectionType:(MTProxyConnectionType)connectionType {
     self = [super init];
     if (self != nil) {
         _ip = ip;
@@ -297,6 +301,7 @@ static NSData *base64_decode(NSString *str) {
         _username = username;
         _password = password;
         _secret = secret;
+        _connectionType = connectionType;
     }
     return self;
 }
@@ -321,11 +326,14 @@ static NSData *base64_decode(NSString *str) {
     if ((other->_secret != nil) != (_secret != nil) || (_secret != nil && ![_secret isEqual:other->_secret])) {
         return false;
     }
+    if (other->_connectionType != _connectionType) {
+        return false;
+    }
     return true;
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"%@:%d+%@+%@+%@", _ip, (int)_port, _username, _password, [_secret description]];
+    return [NSString stringWithFormat:@"%@:%d+type:%d+credentials:%@", _ip, (int)_port, (int)_connectionType, (_username != nil || _password != nil) ? @"yes" : @"no"];
 }
 
 @end

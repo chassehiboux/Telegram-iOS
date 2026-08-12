@@ -159,6 +159,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
                     proxyType = presentationData.strings.SocksProxySetup_ProxyTelegram
                 case .socks5:
                     proxyType = presentationData.strings.SocksProxySetup_ProxySocks5
+                case let .http(_, _, tls):
+                    proxyType = tls ? "HTTPS" : "HTTP"
                 }
             } else {
                 proxyType = presentationData.strings.Settings_ProxyDisabled

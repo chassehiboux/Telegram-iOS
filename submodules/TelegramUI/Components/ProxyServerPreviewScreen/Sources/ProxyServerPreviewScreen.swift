@@ -305,12 +305,12 @@ private final class ProxyServerPreviewSheetContent: CombinedComponent {
                         )
                     ))
                 }
-                if let password {
+                if password != nil {
                     tableItems.append(.init(
                         id: "password",
                         title: strings.SocksProxySetup_Password,
                         component: AnyComponent(
-                            MultilineTextComponent(text: .plain(NSAttributedString(string: password, font: tableFont, textColor: tableTextColor)))
+                            MultilineTextComponent(text: .plain(NSAttributedString(string: "•••••", font: tableFont, textColor: tableTextColor)))
                         )
                     ))
                 }
@@ -322,6 +322,25 @@ private final class ProxyServerPreviewSheetContent: CombinedComponent {
                         MultilineTextComponent(text: .plain(NSAttributedString(string: "•••••", font: tableFont, textColor: tableTextColor)))
                     )
                 ))
+            case let .http(username, password, _):
+                if let username {
+                    tableItems.append(.init(
+                        id: "username",
+                        title: strings.SocksProxySetup_Username,
+                        component: AnyComponent(
+                            MultilineTextComponent(text: .plain(NSAttributedString(string: username, font: tableFont, textColor: tableTextColor)))
+                        )
+                    ))
+                }
+                if password != nil {
+                    tableItems.append(.init(
+                        id: "password",
+                        title: strings.SocksProxySetup_Password,
+                        component: AnyComponent(
+                            MultilineTextComponent(text: .plain(NSAttributedString(string: "•••••", font: tableFont, textColor: tableTextColor)))
+                        )
+                    ))
+                }
             }
             
             var statusText = strings.SocksProxySetup_CheckStatus
