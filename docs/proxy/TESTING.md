@@ -18,7 +18,7 @@
 - CI must use Apple Silicon `macos-26`. The pinned Bazel SHA in `versions.json` matches the darwin-arm64 release; an Intel runner would reject its downloaded Bazel binary.
 - Root `CLAUDE.md` commands using private `fastlanematch`, `TELEGRAM_CODESIGNING_GIT_PASSWORD`, and optional private keys are explicitly excluded.
 - Checked-in fake profiles are coupled to team `C67CF9S4VU` and bundle `ph.telegra.Telegraph`, expire 2026-10-30, and produce a fake-signed rather than unsigned IPA.
-- Initial baseline experiment may retain those profile-bound identifiers while injecting the user's API credentials from GitHub secrets. Final unique fork bundle ID still requires a focused profile/build adaptation.
+- Bazel initially uses the profile-bound upstream identifiers. The final workflow then rewrites app/extension plist references to `com.chassehiboux.TelegramProxy`, removes invalidated placeholder signatures and provisioning profiles, and repackages for SideStore re-signing. The workflow verifies the normalized root bundle ID before upload.
 - `.github/workflows/build-sidestore-ipa.yml` is prepared but has not run. No device IPA or SideStore compatibility is claimed.
 - The target repository is a public GitHub fork, so the standard `macos-26` runner is free according to current GitHub billing documentation. No larger runner is configured.
 - Actions secret-name inspection found neither `TELEGRAM_API_ID` nor `TELEGRAM_API_HASH`; this is the current external blocker to dispatching a meaningful baseline build.

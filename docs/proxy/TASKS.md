@@ -18,6 +18,7 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 - [x] Add manual macOS GitHub Actions workflow.
 - [x] Select and assert exact Xcode/macOS/Apple-Silicon requirements from `versions.json`.
 - [ ] Generate stable non-secret fork configuration; consume Telegram API credentials only from Actions secrets if required.
+- [x] Normalize the final SideStore package to stable bundle ID `com.chassehiboux.TelegramProxy` without committing signing material.
 - [ ] Configure missing Actions secrets `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` (user action; values must not enter Git or logs).
 - [ ] Build a device-arm64 IPA without Telegram private signing infrastructure.
 - [x] Add workflow validation for one `Payload/*.app`, main executable arm64, and iOS-not-simulator platform.

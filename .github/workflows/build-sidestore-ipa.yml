@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORK_BUNDLE_ID: com.chassehiboux.TelegramProxy
+
 jobs:
   build-device-ipa:
     name: Build device arm64 IPA
@@ -122,7 +125,41 @@ jobs:
           }
           ! grep -Eq 'platform[[:space:]]+IOSSIMULATOR[[:space:]]*$' "$output_dir/macho-build.txt" || exit 1
 
-          cp "$source_ipa" "$output_dir/TelegramProxy.ipa"
+          python3 - <<'PY'
+          import os
+          import plistlib
+          from pathlib import Path
+
+          unpack_dir = Path(os.environ["RUNNER_TEMP"]) / "ipa-unpacked"
+          apps = list((unpack_dir / "Payload").glob("*.app"))
+          if len(apps) != 1:
+              raise SystemExit("Expected one root app")
+          root_info = apps[0] / "Info.plist"
+          with root_info.open("rb") as source:
+              old_bundle_id = plistlib.load(source)["CFBundleIdentifier"]
+          new_bundle_id = os.environ["FORK_BUNDLE_ID"]
+
+          def replace(value):
+              if isinstance(value, str):
+                  return value.replace(old_bundle_id, new_bundle_id)
+              if isinstance(value, list):
+                  return [replace(item) for item in value]
+              if isinstance(value, dict):
+                  return {key: replace(item) for key, item in value.items()}
+              return value
+
+          for info_path in (unpack_dir / "Payload").rglob("Info.plist"):
+              with info_path.open("rb") as source:
+                  info = plistlib.load(source)
+              with info_path.open("wb") as destination:
+                  plistlib.dump(replace(info), destination, fmt=plistlib.FMT_BINARY, sort_keys=False)
+          PY
+
+          find "$unpack_dir/Payload" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
+          find "$unpack_dir/Payload" -type f -name 'embedded.mobileprovision' -delete
+          [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app_path/Info.plist")" == "$FORK_BUNDLE_ID" ]] || exit 1
+
+          ditto -c -k --sequesterRsrc --keepParent "$unpack_dir/Payload" "$output_dir/TelegramProxy.ipa"
           shasum -a 256 "$output_dir/TelegramProxy.ipa" | tee "$output_dir/TelegramProxy.ipa.sha256"
 
       - name: Upload validated SideStore package

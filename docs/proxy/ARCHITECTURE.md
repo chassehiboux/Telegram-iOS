@@ -70,5 +70,9 @@ There is no nested `submodules/MtProtoKit/CLAUDE.md` and no existing MtProtoKit 
 - Keep new credentials nested under `connection`; top-level `username` triggers the legacy SOCKS fallback.
 - Keep HTTP/HTTPS excluded from `useForCalls` until the VoIP path explicitly supports them.
 - Never encode HTTP/HTTPS as Telegram `socks` or `proxy` links because older/current clients would misinterpret them. Use fork-specific `tg://http-proxy` and `tg://https-proxy` links for internal/QR sharing; do not claim a `t.me` public schema without one.
+
+## SideStore bundle identity
+
+The public fake-signing profiles are tied to Telegram's upstream bundle family and are used only to make Bazel produce a device archive. The final workflow rewrites the root app and nested extension bundle references to the stable fork ID `com.chassehiboux.TelegramProxy`, removes the invalidated placeholder signatures/profiles, and repackages the archive for SideStore to sign on-device. The normalized IPA is not directly installable without SideStore or another legitimate re-signing tool.
 - Validate trimmed nonempty host and port `1...65535`; do not rely on `UInt16(clamping:)` or `abs(port)`.
 - Mask passwords in previews and redact all proxy descriptions/logs.
