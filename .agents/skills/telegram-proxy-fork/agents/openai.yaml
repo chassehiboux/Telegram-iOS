@@ -1,0 +1,4 @@
+interface:
+  display_name: "Telegram Proxy Fork"
+  short_description: "Develop and validate Telegram-iOS HTTP/HTTPS proxy support"
+  default_prompt: "Use $telegram-proxy-fork to implement or review this Telegram-iOS proxy task."

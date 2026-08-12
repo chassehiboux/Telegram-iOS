@@ -1,0 +1,137 @@
+name: Build SideStore IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-device-ipa:
+    name: Build device arm64 IPA
+    runs-on: macos-26
+    timeout-minutes: 360
+
+    steps:
+      - name: Check required Telegram API secrets
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$TELEGRAM_API_ID" || -z "$TELEGRAM_API_HASH" ]]; then
+            echo "Configure TELEGRAM_API_ID and TELEGRAM_API_HASH as repository Actions secrets." >&2
+            exit 1
+          fi
+
+      - name: Check out source and pinned submodules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Select versions from repository manifest
+        run: |
+          set -euo pipefail
+          required_xcode="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          required_macos="$(python3 -c 'import json; print(json.load(open("versions.json"))["macos"])')"
+          xcode_path="/Applications/Xcode_${required_xcode}.app/Contents/Developer"
+
+          [[ "$(uname -m)" == "arm64" ]] || { echo "An Apple Silicon runner is required." >&2; exit 1; }
+          [[ "$(sw_vers -productVersion | cut -d. -f1)" == "$required_macos" ]] || {
+            echo "versions.json requires macOS $required_macos." >&2
+            exit 1
+          }
+          [[ -d "$xcode_path" ]] || { echo "Required Xcode is unavailable at $xcode_path." >&2; exit 1; }
+
+          sudo xcode-select -s "$xcode_path"
+          [[ "$(xcodebuild -version | awk 'NR == 1 { print $2 }')" == "$required_xcode" ]] || exit 1
+
+          sw_vers
+          xcodebuild -version
+          python3 --version
+          echo "Required Bazel: $(python3 -c 'import json; print(json.load(open("versions.json"))["bazel"].split(":", 1)[0])')"
+
+      - name: Generate secret build configuration
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          source = Path("build-system/appstore-configuration.json")
+          destination = Path(os.environ["RUNNER_TEMP"]) / "telegram-proxy-build.json"
+          config = json.loads(source.read_text(encoding="utf-8"))
+          config["api_id"] = os.environ["TELEGRAM_API_ID"]
+          config["api_hash"] = os.environ["TELEGRAM_API_HASH"]
+          config["is_internal_build"] = "false"
+          config["is_appstore_build"] = "false"
+          config["appstore_id"] = "0"
+          config["premium_iap_product_id"] = ""
+          config["enable_siri"] = False
+          config["enable_icloud"] = False
+          destination.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Import public placeholder signing certificate
+        run: |
+          set -euo pipefail
+          python3 build-system/Make/ImportCertificates.py \
+            --path build-system/fake-codesigning/certs
+
+      - name: Build release device IPA
+        run: |
+          set -euo pipefail
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot=/private/var/tmp/_bazel_telegram_proxy \
+            build \
+            --configurationPath="$RUNNER_TEMP/telegram-proxy-build.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=release_arm64 \
+            --buildNumber="$GITHUB_RUN_NUMBER" \
+            --outputBuildArtifactsPath="$RUNNER_TEMP/build-artifacts"
+
+      - name: Validate and normalize IPA
+        run: |
+          set -euo pipefail
+          source_ipa="$RUNNER_TEMP/build-artifacts/Telegram.ipa"
+          output_dir="$RUNNER_TEMP/sidestore-artifact"
+          unpack_dir="$RUNNER_TEMP/ipa-unpacked"
+          mkdir -p "$output_dir" "$unpack_dir"
+          [[ -f "$source_ipa" ]] || { echo "Expected IPA was not produced." >&2; exit 1; }
+
+          ditto -x -k "$source_ipa" "$unpack_dir"
+          app_count="$(find "$unpack_dir/Payload" -mindepth 1 -maxdepth 1 -type d -name '*.app' | wc -l | tr -d ' ')"
+          [[ "$app_count" -eq 1 ]] || { echo "Expected exactly one Payload/*.app." >&2; exit 1; }
+
+          app_path="$(find "$unpack_dir/Payload" -mindepth 1 -maxdepth 1 -type d -name '*.app' -print -quit)"
+          executable_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
+          executable="$app_path/$executable_name"
+          [[ -f "$executable" ]] || { echo "Main executable is missing." >&2; exit 1; }
+
+          archs="$(lipo -archs "$executable")"
+          [[ "$archs" == "arm64" ]] || { echo "Expected device arm64 only, got: $archs" >&2; exit 1; }
+          xcrun vtool -show-build "$executable" | tee "$output_dir/macho-build.txt"
+          grep -Eq 'platform[[:space:]]+IOS$' "$output_dir/macho-build.txt" || {
+            echo "Main executable is not an iOS device binary." >&2
+            exit 1
+          }
+          ! grep -Eq 'platform[[:space:]]+IOSSIMULATOR$' "$output_dir/macho-build.txt" || exit 1
+
+          cp "$source_ipa" "$output_dir/TelegramProxy.ipa"
+          shasum -a 256 "$output_dir/TelegramProxy.ipa" | tee "$output_dir/TelegramProxy.ipa.sha256"
+
+      - name: Upload validated SideStore package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TelegramProxy-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/sidestore-artifact/TelegramProxy.ipa
+            ${{ runner.temp }}/sidestore-artifact/TelegramProxy.ipa.sha256
+            ${{ runner.temp }}/sidestore-artifact/macho-build.txt
+          if-no-files-found: error
+          retention-days: 14
