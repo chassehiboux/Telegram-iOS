@@ -32,16 +32,17 @@ Statuses: `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`. Completed build/test items m
 
 ## Phase 4 — Data model, persistence, and UI (`IN PROGRESS`)
 
-- [ ] Add unambiguous HTTP and HTTPS modes with host, port, and optional credentials.
-- [ ] Preserve old Codable identifiers and all SOCKS5/MTProto UI behavior.
+- [x] Add unambiguous HTTP and HTTPS modes with host, port, and optional credentials.
+- [x] Preserve old Codable identifiers and all SOCKS5/MTProto UI behavior.
 - [ ] Verify create/edit/save/reopen behavior and add serialization tests where practical.
 - [ ] Run macOS tests/build and backward-compatibility review.
 
-## Phase 5 — HTTP CONNECT implementation (`TODO`)
+## Phase 5 — HTTP CONNECT implementation (`IN PROGRESS`)
 
-- [ ] Add bounded incremental parser/state machine, Basic auth, status handling, IPv4/IPv6 authorities, lifecycle reset, and leftover-byte forwarding.
-- [ ] Test one-chunk and fragmented 2xx, split delimiter, 407/403, malformed/oversized headers, auth redaction, authorities, and trailing tunnel bytes.
-- [ ] Run proxy review and macOS tests/build; fix confirmed issues.
+- [x] Add bounded incremental parser/state machine, Basic auth, status handling, IPv4/IPv6 authorities, lifecycle reset, and leftover-byte forwarding.
+- [x] Add focused tests for one-chunk and fragmented 2xx, split delimiter, 407/403, malformed/oversized headers, auth, authorities, and trailing tunnel bytes.
+- [x] Run an independent proxy review and fix all confirmed blocking issues.
+- [ ] Run the focused tests and application build on macOS.
 
 ## Phase 6 — HTTP adversarial regression review (`TODO`)
 

@@ -37,3 +37,13 @@
 - Implemented the Phase 4 model/UI/storage/link layer and ran an independent read-only proxy review.
 - Fixed review findings: shared URL port validation, monotonic editor stable IDs, transport credential/secret log redaction, and SOCKS-only filtering at `PresentationCallManager`.
 - HTTP/HTTPS transport remains unimplemented at this checkpoint; no functional proxy claim is made.
+
+## 2026-08-12 — HTTP CONNECT implementation
+
+- Added a bounded incremental CONNECT response parser with a 16 KiB limit, strict CRLF/header validation, all-2xx success handling, a distinct 407 result, and trailing-byte preservation.
+- Added safe IPv4, bracketed IPv6, and hostname authority generation. Invalid, non-ASCII, zero-port, control-character, and header-injection inputs are rejected.
+- Added optional RFC 7617 Basic proxy authentication without credential logging; ambiguous usernames containing a colon are rejected.
+- Routed explicit HTTP proxy connections through the proxy endpoint, delayed all MTProto readiness and writes until CONNECT succeeds, and added a separate 12-second handshake timeout with close/reconnect cleanup.
+- Added a focused `//submodules/MtProtoKit:MtProtoKitProxyTests` XCTest target covering success, per-byte fragmentation, all 2xx, 407/403, malformed and oversized responses, auth, address forms, input validation, and trailing data.
+- An independent proxy review found no remaining blocking HTTP CONNECT defects after fixes. Transport-level callback/timeout/reconnect tests and macOS execution remain outstanding.
+- No HTTP runtime or build success is claimed until the focused macOS test and application build complete.

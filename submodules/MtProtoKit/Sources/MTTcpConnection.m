@@ -16,6 +16,7 @@
 
 #import <MtProtoKit/MTContext.h>
 #import <MtProtoKit/MTApiEnvironment.h>
+#import <MtProtoKit/MTHttpConnectParser.h>
 #import <MtProtoKit/MTDatacenterAddress.h>
 #import <MtProtoKit/MTTransportScheme.h>
 
@@ -666,7 +667,8 @@ typedef enum {
     MTTcpSocksReceiveHelloResponse2,
     MTTcpSocksReceivePassthrough,
     MTTcpSocksReceiveComplexLength,
-    MTTcpSocksReceiveComplexPacketPart
+    MTTcpSocksReceiveComplexPacketPart,
+    MTTcpHttpConnectResponseByte
 } MTTcpReadTags;
 
 static const NSTimeInterval MTMinTcpResponseTimeout = 12.0;
@@ -843,6 +845,13 @@ struct ctr_state {
     int32_t _socksPort;
     NSString *_socksUsername;
     NSString *_socksPassword;
+    NSString *_httpProxyIp;
+    int32_t _httpProxyPort;
+    NSString *_httpProxyUsername;
+    NSString *_httpProxyPassword;
+    bool _httpProxyTls;
+    MTHttpConnectParser *_httpConnectParser;
+    MTTimer *_httpConnectTimeoutTimer;
     
     NSString *_mtpIp;
     int32_t _mtpPort;
@@ -911,7 +920,13 @@ struct ctr_state {
         }
         
         if (context.apiEnvironment.socksProxySettings != nil) {
-            if (context.apiEnvironment.socksProxySettings.secret != nil) {
+            if (context.apiEnvironment.socksProxySettings.connectionType == MTProxyConnectionTypeHttp || context.apiEnvironment.socksProxySettings.connectionType == MTProxyConnectionTypeHttps) {
+                _httpProxyIp = context.apiEnvironment.socksProxySettings.ip;
+                _httpProxyPort = context.apiEnvironment.socksProxySettings.port;
+                _httpProxyUsername = context.apiEnvironment.socksProxySettings.username;
+                _httpProxyPassword = context.apiEnvironment.socksProxySettings.password;
+                _httpProxyTls = context.apiEnvironment.socksProxySettings.connectionType == MTProxyConnectionTypeHttps;
+            } else if (context.apiEnvironment.socksProxySettings.secret != nil) {
                 _mtpIp = context.apiEnvironment.socksProxySettings.ip;
                 _mtpPort = context.apiEnvironment.socksProxySettings.port;
                 _mtpSecret = [MTProxySecret parseData:context.apiEnvironment.socksProxySettings.secret];
@@ -958,12 +973,14 @@ struct ctr_state {
     _socket = nil;
     
     MTTimer *responseTimeoutTimer = _responseTimeoutTimer;
+    MTTimer *httpConnectTimeoutTimer = _httpConnectTimeoutTimer;
     
     MTMetaDisposable *resolveDisposable = _resolveDisposable;
     
     [[MTTcpConnection tcpQueue] dispatchOnQueue:^
     {
         [responseTimeoutTimer invalidate];
+        [httpConnectTimeoutTimer invalidate];
         
         [socket disconnect];
         [resolveDisposable dispose];
@@ -1005,7 +1022,22 @@ struct ctr_state {
             NSString *addressIp = _scheme.address.ip;
             MTSignal *resolveSignal = [MTSignal single:[[MTTcpConnectionData alloc] initWithIp:addressIp port:_scheme.address.port isSocks:false]];
             
-            if (_socksIp != nil) {
+            if (_httpProxyIp != nil) {
+                bool isHostname = true;
+                struct in_addr ip4;
+                struct in6_addr ip6;
+                if (inet_aton(_httpProxyIp.UTF8String, &ip4) != 0 || inet_pton(AF_INET6, _httpProxyIp.UTF8String, &ip6) != 0) {
+                    isHostname = false;
+                }
+                if (isHostname) {
+                    int32_t port = _httpProxyPort;
+                    resolveSignal = [[MTDNS resolveHostnameUniversal:_httpProxyIp port:port] map:^id(NSString *resolvedIp) {
+                        return [[MTTcpConnectionData alloc] initWithIp:resolvedIp port:port isSocks:false];
+                    }];
+                } else {
+                    resolveSignal = [MTSignal single:[[MTTcpConnectionData alloc] initWithIp:_httpProxyIp port:_httpProxyPort isSocks:false]];
+                }
+            } else if (_socksIp != nil) {
                 bool isHostname = true;
                 struct in_addr ip4;
                 struct in6_addr ip6;
@@ -1060,7 +1092,9 @@ struct ctr_state {
                     }
                     
                     if (MTLogEnabled()) {
-                        if (strongSelf->_socksIp != nil) {
+                        if (strongSelf->_httpProxyIp != nil) {
+                            MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via HTTP proxy %@:%d (credentials: %@)]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_httpProxyIp, (int)strongSelf->_httpProxyPort, (strongSelf->_httpProxyUsername.length != 0 || strongSelf->_httpProxyPassword.length != 0) ? @"yes" : @"no");
+                        } else if (strongSelf->_socksIp != nil) {
                             MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via %@:%d (credentials: %@)]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_socksIp, (int)strongSelf->_socksPort, (strongSelf->_socksUsername.length != 0 || strongSelf->_socksPassword.length != 0) ? @"yes" : @"no");
                         } else if (strongSelf->_mtpIp != nil) {
                             MTLog(@"[MTTcpConnection#%" PRIxPTR " connecting to %@:%d via MTProto proxy %@:%d]", (intptr_t)strongSelf, strongSelf->_scheme.address.ip, (int)strongSelf->_scheme.address.port, strongSelf->_mtpIp, (int)strongSelf->_mtpPort);
@@ -1072,6 +1106,12 @@ struct ctr_state {
                     __autoreleasing NSError *error = nil;
                     if (![strongSelf->_socket connectToHost:connectionData.ip onPort:connectionData.port viaInterface:strongSelf->_interface withTimeout:12 error:&error] || error != nil) {
                         [strongSelf closeAndNotifyWithError:true];
+                    } else if (strongSelf->_httpProxyIp != nil) {
+                        if (strongSelf->_httpProxyTls) {
+                            [strongSelf closeAndNotifyWithError:true];
+                            return;
+                        }
+                        strongSelf->_httpConnectParser = [[MTHttpConnectParser alloc] initWithMaximumHeaderLength:16 * 1024];
                     } else if (strongSelf->_socksIp == nil) {
                         if (strongSelf->_mtpIp != nil && [strongSelf->_mtpSecret isKindOfClass:[MTProxySecretType2 class]]) {
                             MTProxySecretType2 *secret = (MTProxySecretType2 *)(strongSelf->_mtpSecret);
@@ -1146,6 +1186,8 @@ struct ctr_state {
         if (!_closed)
         {
             _closed = true;
+            [_httpConnectTimeoutTimer invalidate];
+            _httpConnectTimeoutTimer = nil;
             
             [_socket disconnect];
             [_socket resetDelegate];
@@ -1482,7 +1524,40 @@ struct ctr_state {
     id<MTTcpConnectionDelegate> delegate = _delegate;
     [delegate tcpConnectionDownloadActivityUpdated:self];
     
-    if (tag == MTTcpSocksLogin) {
+    if (tag == MTTcpHttpConnectResponseByte) {
+        NSInteger statusCode = 0;
+        NSData *trailingData = nil;
+        MTHttpConnectParserResult result = [_httpConnectParser appendData:rawData trailingData:&trailingData statusCode:&statusCode];
+        if (result == MTHttpConnectParserResultIncomplete) {
+            [_socket readDataToLength:1 withTimeout:-1 tag:MTTcpHttpConnectResponseByte];
+        } else if (result == MTHttpConnectParserResultSuccess) {
+            [_httpConnectTimeoutTimer invalidate];
+            _httpConnectTimeoutTimer = nil;
+            _httpConnectParser = nil;
+            if (_connectionOpened)
+                _connectionOpened();
+            id<MTTcpConnectionDelegate> delegate = _delegate;
+            if ([delegate respondsToSelector:@selector(tcpConnectionOpened:)])
+                [delegate tcpConnectionOpened:self];
+            _readyToSendData = true;
+            [self sendDataIfNeeded];
+            if (trailingData.length != 0) {
+                [self addReadData:trailingData networkType:networkType];
+            }
+            if (_useIntermediateFormat) {
+                [self requestReadDataWithLength:4 tag:MTTcpReadTagPacketFullLength];
+            } else {
+                [self requestReadDataWithLength:1 tag:MTTcpReadTagPacketShortLength];
+            }
+        } else {
+            if (MTLogEnabled()) {
+                NSString *failureCategory = result == MTHttpConnectParserResultAuthenticationRequired ? @"authentication required" : (statusCode == 0 ? @"malformed response" : @"proxy rejected request");
+                MTLog(@"[MTTcpConnection#%" PRIxPTR " HTTP CONNECT failed: %@ (status %ld)]", (intptr_t)self, failureCategory, (long)statusCode);
+            }
+            [self closeAndNotifyWithError:true];
+        }
+        return;
+    } else if (tag == MTTcpSocksLogin) {
         if (rawData.length != sizeof(struct socks5_ident_resp)) {
             if (MTLogEnabled()) {
                 MTLog(@"***** %s: invalid socks5 login response length", __PRETTY_FUNCTION__);
@@ -1782,15 +1857,14 @@ struct ctr_state {
     assert(length > 0);
     assert(_pendingReceiveData == nil);
     _pendingReceiveData = [[MTTcpReceiveData alloc] initWithTag:tag length:length];
-    if (![_mtpSecret isKindOfClass:[MTProxySecretType2 class]]) {
-        [_socket readDataToLength:length withTimeout:-1 tag:MTTcpSocksReceivePassthrough];
-    }
     if (_receivedDataBuffer.length >= _pendingReceiveData.length) {
         NSData *rawData = [_receivedDataBuffer subdataWithRange:NSMakeRange(0, _pendingReceiveData.length)];
         [_receivedDataBuffer replaceBytesInRange:NSMakeRange(0, _pendingReceiveData.length) withBytes:nil length:0];
         int tag = _pendingReceiveData.tag;
         _pendingReceiveData = nil;
         [self processReceivedData:rawData tag:tag networkType:_lastNetworkType];
+    } else if (![_mtpSecret isKindOfClass:[MTProxySecretType2 class]]) {
+        [_socket readDataToLength:length withTimeout:-1 tag:MTTcpSocksReceivePassthrough];
     }
 }
 
@@ -2019,7 +2093,23 @@ struct ctr_state {
              
 - (void)connectionInterfaceDidConnect
 {
-    if (_socksIp != nil) {
+    if (_httpProxyIp != nil) {
+        NSData *request = MTHttpConnectRequest(_scheme.address.ip, _scheme.address.port, _httpProxyUsername, _httpProxyPassword);
+        if (request == nil) {
+            [self closeAndNotifyWithError:true];
+            return;
+        }
+        [_socket writeData:request];
+        [_socket readDataToLength:1 withTimeout:-1 tag:MTTcpHttpConnectResponseByte];
+        __weak MTTcpConnection *weakSelf = self;
+        _httpConnectTimeoutTimer = [[MTTimer alloc] initWithTimeout:12.0 repeat:false completion:^{
+            __strong MTTcpConnection *strongSelf = weakSelf;
+            if (strongSelf != nil) {
+                [strongSelf closeAndNotifyWithError:true];
+            }
+        } queue:[[MTTcpConnection tcpQueue] nativeQueue]];
+        [_httpConnectTimeoutTimer start];
+    } else if (_socksIp != nil) {
         
     } else {
         if (_connectionOpened)
